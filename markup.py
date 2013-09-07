@@ -6,7 +6,7 @@ from collections import namedtuple
 import os
 Rectangle =  namedtuple('rectangle', ['x', 'y', 'w', 'h', 'r', 'g', 'b'])
 WebRectangle  = namedtuple('webrectangle', ['x', 'y', 'w', 'h', 'type','inside']) 
-Grid = namedtuple('grid', ['x','y', 'origin'])
+Grid = namedtuple('grid', ['x','y', 'origin', 'end'])
 Point = namedtuple('point', ['x','y'])
 def find_color(x,y, image):
     corner = image.crop(x-2, y-2, 4, 4)
@@ -33,16 +33,17 @@ def find_rectangles(img):
 def grid_transform(info):
     max_rectangle = max(info[0], key=lambda rect: rect.w * rect.h)
     info[0].remove(max_rectangle) 
+    img = info[1]
     origin = Point(max_rectangle.x, max_rectangle.y)
+    end = Point(max_rectangle.x + max_rectangle.w, max_rectangle.y + max_rectangle.h)
     gridx = int(math.ceil(max_rectangle.w/14))
     gridy = int(math.ceil(max_rectangle.h/9))
-    grid = Grid(gridx, gridy, origin) 
+    grid = Grid(gridx, gridy, origin, end) 
+    #img = draw_grid(img, grid)
     web_rects = [] 
     for rect in info[0]:
         web_rects.append(transform_rect(rect, grid))
-    for rect in web_rects:
-        info[1].drawRectangle(rect.x*(grid.x - 1) - grid.origin.x, rect.y*(grid.y - 1) - grid.origin.y, rect.w*(grid.x - 1), rect.h*(grid.y - 1))
-    return web_rects, info[1]
+    return web_rects, img
 
 def transform_rect(rect, grid):
     '''Takes rectangle on paper and transforms it into a web rectangle with certain 
@@ -61,7 +62,6 @@ def transform_point(point, grid):
         new_x = down_x
     else:
         new_x = up_x
-
     up_y = int(math.ceil((point.y + grid.origin.y)/grid.y))
     down_y = int((point.y + grid.origin.y)/grid.y)
     if abs(point.y - up_y) >= abs(point.y - down_y): 
@@ -72,11 +72,11 @@ def transform_point(point, grid):
 
      
 def draw_grid(image, grid):
-    for i, x in enumerate(range(max_rectangle.x, max_rectangle.w + gridx, gridx)):
-        for j, y in enumerate(range(max_rectangle.y, max_rectangle.y + max_rectangle.h, gridy)):            image.drawRectangle(x, y, gridx, gridy)
+    for i, x in enumerate(range(grid.origin.x, grid.end.x + grid.x, grid.x)):
+        for j, y in enumerate(range(grid.origin.y, grid.end.x + grid.y, grid.y)):
+            image.drawRectangle(x, y, grid.x, grid.y)
     return image 
-        
-
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Please enter an image to be analyzed")    
     parser.add_argument('image', type=str,
