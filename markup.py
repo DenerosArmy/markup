@@ -39,6 +39,7 @@ def grid_transform(info):
     gridx = int(math.ceil(max_rectangle.w/14))
     gridy = int(math.ceil(max_rectangle.h/9))
     grid = Grid(gridx, gridy, origin, end) 
+    
     img = draw_grid(img, grid)
     web_rects = [] 
     for rect in info[0]:
