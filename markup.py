@@ -24,7 +24,7 @@ def find_shapes(img):
         w = info[2]
         h = info[3]
         c = find_color(x, y, markupImage)
-        markupImage.drawRectangle(x, y, w, h)
+        #markupImage.drawRectangle(x, y, w, h)
         rectangles.append(Rectangle(*((x, y, w, h) + c)))
     max_rectangle = max(rectangles, key=lambda rect: rect.w * rect.h) 
     #markupImage.drawRectangle(max_rectangle.x, max_rectangle.y, max_rectangle.w, max_rectangle.h, Color.ORANGE) 
@@ -40,13 +40,11 @@ def grid_transform(info):
     gridy = int(math.ceil(max_rectangle.h/9))
     grid = Grid(gridx, gridy, origin, end) 
     
-    img = draw_grid(img, grid)
-    web_rects= classify_rect(info[0], grid) 
-    #for rect in info[0]:
-       # web_rects.append(transform_rect(rect, grid))
+    #img = draw_grid(img, grid)
+    web_rects= classify_rect(info[0], grid, img) 
     return web_rects, img
 
-def classify_rect(rects, grid):
+def classify_rect(rects, grid, img):
     web_rects = []
     for rect in rects:
         coords = transform_rect(rect, grid)
@@ -55,8 +53,28 @@ def classify_rect(rects, grid):
         w = abs(coords[0].x - coords[1].x)
 	h = abs(coords[0].y - coords[1].y)
         web_rects.append(WebRectangle(x,y,w,h,"text",[]))
+    
+    for wrect in web_rects:
+        subshapes = find_subshapes(web_rects, wrect)
+        wrect = WebRectangle(wrect.x, wrect.y, wrect.w, wrect.h, "text", subshapes)
+
+
     return web_rects   
 
+def find_subshapes(rectangles, rect):
+    subshapes = []
+    for r in rectangles:
+	if ((~(rect == r)) and (includes(r,rect))):
+	    subshapes.append(r)
+    return subshapes
+
+def includes(shape, rectangle):
+    if ((shape.x > rectangle.x) and (shape.y > rectangle.y) and (shape.w < rectangle.w) and (shape.h < rectangle.h)):
+	return True
+    else:
+        return False
+
+	    
 def transform_rect(rect, grid):
     '''Takes rectangle on paper and transforms it into a web rectangle with certain 
     properties'''
