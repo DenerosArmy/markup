@@ -12,7 +12,7 @@ def find_color(x,y, image):
     corner = image.crop(x-2, y-2, 4, 4)
     return corner.meanColor() 
 
-def find_rectangles(img):
+def find_shapes(img):
     markupImage = Image(img)
     bwImage = markupImage.binarize() 
     blobs = bwImage.findBlobs()
@@ -24,10 +24,10 @@ def find_rectangles(img):
         w = info[2]
         h = info[3]
         c = find_color(x, y, markupImage)
-        #markupImage.drawRectangle(x, y, w, h)
+        markupImage.drawRectangle(x, y, w, h)
         rectangles.append(Rectangle(*((x, y, w, h) + c)))
     max_rectangle = max(rectangles, key=lambda rect: rect.w * rect.h) 
-    #markupImage.drawRectangle(max_rectangle.x, max_rectangle.y, max_rectangle.w, max_rectangle.h, Color.ORANGE) 
+    markupImage.drawRectangle(max_rectangle.x, max_rectangle.y, max_rectangle.w, max_rectangle.h, Color.ORANGE) 
     return rectangles, markupImage 
 
 def grid_transform(info):
@@ -39,7 +39,7 @@ def grid_transform(info):
     gridx = int(math.ceil(max_rectangle.w/14))
     gridy = int(math.ceil(max_rectangle.h/9))
     grid = Grid(gridx, gridy, origin, end) 
-    #img = draw_grid(img, grid)
+    img = draw_grid(img, grid)
     web_rects = [] 
     for rect in info[0]:
         web_rects.append(transform_rect(rect, grid))
@@ -72,9 +72,9 @@ def transform_point(point, grid):
 
      
 def draw_grid(image, grid):
-    for i, x in enumerate(range(grid.origin.x, grid.end.x + grid.x, grid.x)):
-        for j, y in enumerate(range(grid.origin.y, grid.end.x + grid.y, grid.y)):
-            image.drawRectangle(x, y, grid.x, grid.y)
+    for i, x in enumerate(range(grid.origin.x, grid.end.x, grid.x)):
+        for j, y in enumerate(range(grid.origin.y, grid.end.y, grid.y)):
+            image.drawRectangle(x, y, grid.x, grid.y, Color.GREEN)
     return image 
     
 if __name__ == "__main__":
@@ -82,7 +82,8 @@ if __name__ == "__main__":
     parser.add_argument('image', type=str,
                                help='path to image to be analyzed')
     args = parser.parse_args()
-    image = find_rectangles(os.path.abspath(args.image))
+    shapes = find_shapes(os.path.abspath(args.image))
+    image = grid_transform(shapes)
     while True: 
         image[1].show()
 
