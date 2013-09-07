@@ -4,14 +4,12 @@ import math
 from SimpleCV import Image, Color, Features
 from collections import namedtuple
 import os
+import numpy
 DEBUG = 0
 Rectangle =  namedtuple('rectangle', ['x', 'y', 'w', 'h', 'r', 'g', 'b', 'type', 'subshapes'])
 WebRectangle  = namedtuple('webrectangle', ['x', 'y', 'w', 'h', 'type','subshapes']) 
 Grid = namedtuple('grid', ['x','y', 'origin', 'end'])
 Point = namedtuple('point', ['x','y'])
-def find_color(x,y, image):
-    corner = image.crop(x-2, y-2, 4, 4)
-    return corner.meanColor() 
 
 def find_shapes(img):
     markupImage = Image(img)
@@ -57,10 +55,9 @@ def classify_rect(info, grid):
 	    cc= rect[0:4]
 	    a = img.crop(cc)
 	    a.save('f{0}.jpg'.format(i))  
-	    if (detect_triangle(img.crop(rect[0:4]))):
-		shape = "triangle"
-	    else:
-		shape = "none"
+            shape = "triangle"
+	else:
+	    shape = "none"
 	mid_rects.append(Rectangle(rect[0], rect[1], rect[2], rect[3],0,0,0, shape, subshapes))
     
     web_coord_rects = []
@@ -152,14 +149,61 @@ def draw_grid(image, grid):
             image.drawRectangle(x, y, grid.x, grid.y, Color.GREEN)
     return image 
     
+def analyze_color(rect, markupImage):
+    red_image = markupImage - markupImage.colorDistance(Color.RED)
+    green_image = markupImage - markupImage.colorDistance(Color.GREEN)
+    blue_image  = markupImage - markupImage.colorDistance(Color.BLUE)
+    find_color(rect[0], rect[1], red_image, green_image, blue_image)   
+
+def find_color(x,y, red, green, blue):
+    redimg = red.crop(x,y,5,5)
+    greenimg = green.crop(x,y,5,5)
+    blueimg = blue.crop(x,y,5,5)
+    redlevel = redimg.meanColor()
+    greenlevel = greenimg.meanColor()
+    bluelevel = blueimg.mean color()
+    if max(max(bluelevel), max(redlevel), max(greenlevel)) > 0.5:
+	color = max([bluelevel, redlevel, greenlevel], key=max)
+	if color == greenlevel:
+		return "green"
+	elif color == redlevel:
+		return "red"
+	else:
+		return "blue"
+    else:
+	return "black"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Please enter an image to be analyzed")    
     parser.add_argument('image', type=str,
                                help='path to image to be analyzed')
     args = parser.parse_args()
-    shapes = find_shapes(os.path.abspath(args.image))
-    image = grid_transform(shapes)
+    #shapes = find_shapes(os.path.abspath(args.image))
+    #image = grid_transform(shapes)
+    img = Image("markup.jpg")
+    blob = img.findBlobs()
+    for b in blob:
+	info = b.boundingBox()
+	analyze_color((info[0], info[1], info[2], info[3]), img)
     while True: 
-        image[1].show()
+        img.show()
 
 
