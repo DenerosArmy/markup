@@ -27,7 +27,7 @@ def find_shapes(img):
         markupImage.drawRectangle(x, y, w, h)
         rectangles.append(Rectangle(*((x, y, w, h) + c)))
     max_rectangle = max(rectangles, key=lambda rect: rect.w * rect.h) 
-    markupImage.drawRectangle(max_rectangle.x, max_rectangle.y, max_rectangle.w, max_rectangle.h, Color.ORANGE) 
+    #markupImage.drawRectangle(max_rectangle.x, max_rectangle.y, max_rectangle.w, max_rectangle.h, Color.ORANGE) 
     return rectangles, markupImage 
 
 def grid_transform(info):
@@ -41,19 +41,32 @@ def grid_transform(info):
     grid = Grid(gridx, gridy, origin, end) 
     
     img = draw_grid(img, grid)
-    web_rects = [] 
-    for rect in info[0]:
-        web_rects.append(transform_rect(rect, grid))
+    web_rects= classify_rect(info[0], grid) 
+    #for rect in info[0]:
+       # web_rects.append(transform_rect(rect, grid))
     return web_rects, img
+
+def classify_rect(rects, grid):
+    web_rects = []
+    for rect in rects:
+        coords = transform_rect(rect, grid)
+        x = coords[0].x
+	y = coords[0].y
+        w = abs(coords[0].x - coords[1].x)
+	h = abs(coords[0].y - coords[1].y)
+        web_rects.append(WebRectangle(x,y,w,h,"text",[]))
+    return web_rects   
 
 def transform_rect(rect, grid):
     '''Takes rectangle on paper and transforms it into a web rectangle with certain 
-    properties''' 
-    _type = "text"
+    properties'''
+     
+    #_type = "text"
     upper_corner = transform_point(Point(rect.x, rect.y), grid) 
     lower_corner = transform_point(Point(rect.x + rect.w, rect.y + rect.h), grid) 
-    return WebRectangle(upper_corner.x, upper_corner.y, abs(upper_corner.x - lower_corner.x),
-                 abs(upper_corner.y - lower_corner.y), _type , [])
+    return upper_corner, lower_corner
+#return WebRectangle(upper_corner.x, upper_corner.y, abs(upper_corner.x - lower_corner.x),
+                 #abs(upper_corner.y - lower_corner.y), _type , [])
 
     
 def transform_point(point, grid):
