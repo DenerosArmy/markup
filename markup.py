@@ -4,8 +4,9 @@ import math
 from SimpleCV import Image, Color, Features
 from collections import namedtuple
 import os
-Rectangle =  namedtuple('rectangle', ['x', 'y', 'w', 'h', 'r', 'g', 'b'])
-WebRectangle  = namedtuple('webrectangle', ['x', 'y', 'w', 'h', 'type','inside']) 
+DEBUG = 0
+Rectangle =  namedtuple('rectangle', ['x', 'y', 'w', 'h', 'r', 'g', 'b', 'type', 'subshapes'])
+WebRectangle  = namedtuple('webrectangle', ['x', 'y', 'w', 'h', 'type','subshapes']) 
 Grid = namedtuple('grid', ['x','y', 'origin', 'end'])
 Point = namedtuple('point', ['x','y'])
 def find_color(x,y, image):
@@ -24,10 +25,11 @@ def find_shapes(img):
         w = info[2]
         h = info[3]
         c = find_color(x, y, markupImage)
-        #markupImage.drawRectangle(x, y, w, h)
-        rectangles.append(Rectangle(*((x, y, w, h) + c)))
-    max_rectangle = max(rectangles, key=lambda rect: rect.w * rect.h) 
-    #markupImage.drawRectangle(max_rectangle.x, max_rectangle.y, max_rectangle.w, max_rectangle.h, Color.ORANGE) 
+        markupImage.drawRectangle(x, y, w, h)
+        rectangles.append(Rectangle(x,y,w,h,c[0], c[1], c[2],"text",[]))
+    if DEBUG:
+	max_rectangle = max(rectangles, key=lambda rect: rect.w * rect.h) 
+   	markupImage.drawRectangle(max_rectangle.x, max_rectangle.y, max_rectangle.w, max_rectangle.h, Color.ORANGE) 
     return rectangles, markupImage 
 
 def grid_transform(info):
@@ -40,27 +42,68 @@ def grid_transform(info):
     gridy = int(math.ceil(max_rectangle.h/9))
     grid = Grid(gridx, gridy, origin, end) 
     
-    #img = draw_grid(img, grid)
-    web_rects= classify_rect(info[0], grid, img) 
+    web_rects= classify_rect(info, grid)
     return web_rects, img
 
-def classify_rect(rects, grid, img):
-    web_rects = []
-    for rect in rects:
-        coords = transform_rect(rect, grid)
-        x = coords[0].x
-	y = coords[0].y
-        w = abs(coords[0].x - coords[1].x)
-	h = abs(coords[0].y - coords[1].y)
-        web_rects.append(WebRectangle(x,y,w,h,"text",[]))
+def classify_rect(info, grid):
+    rects = info[0]
+    img = info[1]
     
-    for wrect in web_rects:
-        subshapes = find_subshapes(web_rects, wrect)
-        wrect = WebRectangle(wrect.x, wrect.y, wrect.w, wrect.h, "text", subshapes)
+    mid_rects =[]
+    #need to fix for TRIANGLE SUBSHAPE DETECTION
+    for i, rect in enumerate(rects): 
+	subshapes = find_subshapes(rects,rect)
+        if (len(subshapes) == 0):
+	    cc= rect[0:4]
+	    a = img.crop(cc)
+	    a.save('f{0}.jpg'.format(i))  
+	    if (detect_triangle(img.crop(rect[0:4]))):
+		shape = "triangle"
+	    else:
+		shape = "none"
+	mid_rects.append(Rectangle(rect[0], rect[1], rect[2], rect[3],0,0,0, shape, subshapes))
+    
+    web_coord_rects = []
+    for mrect in mid_rects:
+        coords = transform_rect(mrect, grid)
+        x = coords[0].x
+        y = coords[0].y
+        w = abs(coords[0].x - coords[1].x)
+        h = abs(coords[0].y - coords[1].y)
+        web_coord_rects.append(WebRectangle(x,y,w,h,"text",mrect.inside))
 
-
+    web_rects = []
+    _type = "text"
+    for wcrect in web_coord_rects:
+	for s in wcrect.inside:
+	    if ((s.type == "triangle") and (len(wcrect.inside) == 1)):
+		_type = "image"
+	web_rects.append(WebRectangle(wcrect[0], wcrect[1], wcrect[2], wcrect[3], _type, wcrect.inside))
     return web_rects   
 
+def detect_triangle(img):
+    c = img.findCorners(10,.5)
+    if len(c) == 3:
+	return True
+
+    return False
+       
+
+ 
+#ONLY FOR TESTING AND DRAWING PURPOSES
+def analyze_shapes(info):
+    img = info[1]
+    max_rectangle = max(info[0], key=lambda rect: rect.w * rect.h)
+    info[0].remove(max_rectangle)
+
+    for r in info[0]:
+	sub = find_subshapes(info[0], r)
+        img.drawRectangle(r.x, r.y, r.w, r.h, Color.BLUE)
+        for s in sub:
+            img.drawRectangle(s.x, s.y, s.w, s.h)
+    return image
+         
+ 
 def find_subshapes(rectangles, rect):
     subshapes = []
     for r in rectangles:
