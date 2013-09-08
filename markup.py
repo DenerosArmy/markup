@@ -3,6 +3,7 @@ import argparse
 import math
 from SimpleCV import Image, Color, Features
 from recordtype import recordtype
+import numpy
 import os
 DEBUG = 1
 Rectangle =  recordtype('rectangle', ['x', 'y', 'w', 'h', 'r', 'g', 'b', 'shape', 'parent'])
@@ -50,9 +51,6 @@ def grid_transform(info):
     find_webrects_metadata(rects, web_rects) 
     draw_web_rects(img, web_rects, grid) 
     return list(filter(lambda rect: rect.w != 0 and rect.h != 0, web_rects)), img
-
-def analyze_color(rect):
-    return "red"
 
 def find_rects_metadata(rects, img):
     for i, rect in enumerate(rects):
@@ -159,15 +157,44 @@ def draw_web_rects(image, web_rects, grid):
         a_h =  grid.y * rect.h
         image.drawRectangle(a_x, a_y, a_w, a_h, colors[rect.box_type]) 
     return image
+    
+def analyze_color(rect, markupImage):
+    red_image = markupImage - markupImage.colorDistance(Color.RED)
+    green_image = markupImage - markupImage.colorDistance(Color.GREEN)
+    blue_image  = markupImage - markupImage.colorDistance(Color.BLUE)
+    find_color(rect[0], rect[1], red_image, green_image, blue_image)   
+
+def find_color(x,y, red, green, blue):
+    redimg = red.crop(x,y,5,5)
+    greenimg = green.crop(x,y,5,5)
+    blueimg = blue.crop(x,y,5,5)
+    redlevel = redimg.meanColor()
+    greenlevel = greenimg.meanColor()
+    bluelevel = blueimg.meanColor()
+    if max(max(bluelevel), max(redlevel), max(greenlevel)) > 0.5:
+	color = max([bluelevel, redlevel, greenlevel], key=max)
+	if color == greenlevel:
+		return "green"
+	elif color == redlevel:
+		return "red"
+	else:
+		return "blue"
+    else:
+	return "black"
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Please enter an image to be analyzed")    
     parser.add_argument('image', type=str,
                                help='path to image to be analyzed')
     args = parser.parse_args()
-    shapes = find_shapes(os.path.abspath(args.image))
-    image = grid_transform(shapes)
+    #shapes = find_shapes(os.path.abspath(args.image))
+    #image = grid_transform(shapes)
+    img = Image("markup.jpg")
+    blob = img.findBlobs()
+    for b in blob:
+	info = b.boundingBox()
+	analyze_color((info[0], info[1], info[2], info[3]), img)
     while True: 
-        image[1].show()
+        img.show()
 
 
