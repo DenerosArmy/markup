@@ -15,7 +15,7 @@ Point = recordtype('point', ['x','y'])
 def find_shapes(img, i):
     markupImage = img
     bwImage = markupImage.binarize(i)
-    blobs = bwImage.findBlobs()
+    blobs = markupImage.findBlobs()
     rectangles = [] 
     for b in blobs:
         info = b.boundingBox()
@@ -194,12 +194,14 @@ def find_color(x,y, red, green, blue):
     return "black"
         
 def analyze(img):
-    return grid_transform(find_shapes(Image(img), 50))
+    return grid_transform(find_shapes(Image(img), -1))
 
 def get_rows(webrectangles, img):
     rows = [[] for i in range(9)] 
     for rect in webrectangles:
         rows[rect.y].append(rect) 
+    for row in rows:
+        row.sort(key=lambda x: x.x)
     return rows 
 
 
