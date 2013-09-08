@@ -13,7 +13,7 @@ Grid = recordtype('grid', ['x','y', 'origin', 'end'])
 Point = recordtype('point', ['x','y'])
 def find_shapes(img):
     markupImage = Image(img)
-    bwImage = markupImage.binarize(50)
+    bwImage = markupImage.binarize(70)
     blobs = bwImage.findBlobs()
     rectangles = [] 
     for b in blobs:
@@ -127,6 +127,8 @@ def transform_point(point, grid):
         new_x = down_x
     else:
         new_x = up_x
+    if new_x < 0:
+        new_x = 0
     if new_x >= 14:
         new_x = 13
     up_y = int(math.ceil((point.y - grid.origin.y)/grid.y))
@@ -137,6 +139,8 @@ def transform_point(point, grid):
         new_y = up_y
     if new_y >= 9:
         new_y = 8
+    if new_y < 0:
+        new_y = 0
     return Point(new_x, new_y)
 
      
@@ -188,5 +192,5 @@ if __name__ == "__main__":
     parser.add_argument('image', type=str,
                                help='path to image to be analyzed')
     args = parser.parse_args()
-    print(analyze(args.img))
+    print(analyze(args.image))
 
