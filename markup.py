@@ -16,6 +16,7 @@ Point = recordtype('point', ['x','y'])
 
 def find_shapes(img, i):
     markupImage = img
+
     bwImage = markupImage.binarize(i)
     blobs = bwImage.findBlobs()
     rectangles = [] 
@@ -33,14 +34,14 @@ def find_shapes(img, i):
     blobs = bwImage.findBlobs()
     for b in blobs:
         info = b.boundingBox()
-        x = info[0]
+        x = info[0] 
         y = info[1]
         w = info[2]
         h = info[3]
         #markupImage.drawRectangle(x, y, w, h)
         r = Rectangle(x, y, w, h, 1)
         rectangles.append(r) 
-
+      
     max_rectangle = max(rectangles, key=lambda rect: rect.w * rect.h)
     markupImage.drawRectangle(max_rectangle.x, max_rectangle.y, max_rectangle.w, max_rectangle.h, Color.ORANGE)  
     return rectangles, img
@@ -49,7 +50,14 @@ def grid_transform(info):
     rects, img = info 
     max_rectangle = max(rects, key=lambda rect: rect.w * rect.h)
     rects.remove(max_rectangle) 
-    rects.sort(key=lambda rect: -1 * rect.w * rect.h)  
+    '''
+    for rect in rects[:]:
+        for other_rect in rects[:]:
+            if inside(rect, other_rect):
+                if rect in rects:
+                    rects.remove(rect) 
+
+    '''
     origin = Point(max_rectangle.x, max_rectangle.y)
     end = Point(max_rectangle.x + max_rectangle.w, max_rectangle.y + max_rectangle.h)
     gridx = int(math.ceil(max_rectangle.w/GRIDX))
@@ -59,10 +67,11 @@ def grid_transform(info):
     for rect in rects:
         web_rects.append(transform_rect(rect, grid))
     
-    draw_grid(img, grid)
+    #draw_grid(img, grid)
 
     web_rects = list(filter(lambda rect: rect.w > 6 and rect.h > 6, web_rects))
     draw_web_rects(img, web_rects, grid) 
+    img.save("website.jpg")
     return web_rects, img
 
 def imagetonum(str):
