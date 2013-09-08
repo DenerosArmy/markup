@@ -23,7 +23,7 @@ def find_shapes(img):
         w = info[2]
         h = info[3]
         #markupImage.drawRectangle(x, y, w, h)
-        r = Rectangle(x, y, w, h, c[0], c[1], c[2], "black", 0, None)
+        r = Rectangle(x, y, w, h, "black", 0, None)
         r.color = analyze_color(r, markupImage)
         rectangles.append(r)
     if DEBUG:
@@ -159,7 +159,8 @@ def analyze_color(rect, markupImage):
     red_image = markupImage - markupImage.colorDistance(Color.RED)
     green_image = markupImage - markupImage.colorDistance(Color.GREEN)
     blue_image  = markupImage - markupImage.colorDistance(Color.BLUE)
-    return find_color(rect[0], rect[1], red_image, green_image, blue_image)   
+    return find_color(rect.x, rect.y, red_image, green_image, blue_image)   
+
 
 def find_color(x,y, red, green, blue):
     redimg = red.crop(x,y,5,5)
@@ -179,19 +180,13 @@ def find_color(x,y, red, green, blue):
     else:
 	return "black"
 
+def analyze(img):
+    return grid_transform(find_shapes(img))
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Please enter an image to be analyzed")    
     parser.add_argument('image', type=str,
                                help='path to image to be analyzed')
     args = parser.parse_args()
-    #shapes = find_shapes(os.path.abspath(args.image))
-    #image = grid_transform(shapes)
-    img = Image("markup.jpg")
-    blob = img.findBlobs()
-    for b in blob:
-	info = b.boundingBox()
-	analyze_color((info[0], info[1], info[2], info[3]), img)
-    while True: 
-        img.show()
-
+    print(analyze(args.img))
 
