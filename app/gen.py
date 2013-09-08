@@ -22,7 +22,7 @@ def generate(rows,auto_expand=True):
 			'''elem[1] is the width'''
 			if elem[0] == "img":
 				content = img_tag('http://placekitten.com/600/400',400,300)
-			elif elem[1] >= 44:
+			elif elem[1] >= 40:
 				#if elem[0] == "img":
 				content = jumbotron()
 			else: 

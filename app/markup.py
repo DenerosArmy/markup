@@ -67,7 +67,7 @@ def grid_transform(info):
     for rect in rects:
         web_rects.append(transform_rect(rect, grid))
     
-    #draw_grid(img, grid)
+    draw_grid(img, grid)
 
     web_rects = list(filter(lambda rect: rect.w > 6 and rect.h > 6, web_rects))
     draw_web_rects(img, web_rects, grid) 
@@ -198,6 +198,13 @@ def get_rows(webrectangles, img):
         row.sort(key=lambda x: x.x)
     return rows 
 
+def get_rows2(webrectangles, img):
+    rows = [[] for i in range(GRIDY/4)] 
+    for rect in webrectangles:
+        rows[rect.y*4].append(rect) 
+    for row in rows:
+        row.sort(key=lambda x: x.x)
+    return rows 
 
 
 if __name__ == "__main__":
