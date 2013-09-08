@@ -2,20 +2,21 @@ from __future__ import division
 import argparse 
 import math
 from SimpleCV import Image, Color, Features
-from collections import namedtuple
+from recordtype import recordtype
 import os
-DEBUG = 0
-Rectangle =  namedtuple('rectangle', ['x', 'y', 'w', 'h', 'r', 'g', 'b', 'type', 'subshapes'])
-WebRectangle  = namedtuple('webrectangle', ['x', 'y', 'w', 'h', 'type','subshapes']) 
-Grid = namedtuple('grid', ['x','y', 'origin', 'end'])
-Point = namedtuple('point', ['x','y'])
+DEBUG = 1
+Rectangle =  recordtype('rectangle', ['x', 'y', 'w', 'h', 'r', 'g', 'b', 'shape', 'parent'])
+WebRectangle  = recordtype('webrectangle', ['x', 'y', 'w', 'h', 'shape', 'children', 'parent', 'box_type']) 
+colors = [Color.BLUE, Color.GREEN, Color.HOTPINK]
+Grid = recordtype('grid', ['x','y', 'origin', 'end'])
+Point = recordtype('point', ['x','y'])
 def find_color(x,y, image):
     corner = image.crop(x-2, y-2, 4, 4)
     return corner.meanColor() 
 
 def find_shapes(img):
     markupImage = Image(img)
-    bwImage = markupImage.binarize() 
+    bwImage = markupImage.binarize(50)
     blobs = bwImage.findBlobs()
     rectangles = [] 
     for b in blobs:
@@ -25,70 +26,67 @@ def find_shapes(img):
         w = info[2]
         h = info[3]
         c = find_color(x, y, markupImage)
-        markupImage.drawRectangle(x, y, w, h)
-        rectangles.append(Rectangle(x,y,w,h,c[0], c[1], c[2],"text",[]))
+        #markupImage.drawRectangle(x, y, w, h)
+        rectangles.append(Rectangle(x,y,w,h,c[0], c[1], c[2],0,None))
     if DEBUG:
-	max_rectangle = max(rectangles, key=lambda rect: rect.w * rect.h) 
-   	markupImage.drawRectangle(max_rectangle.x, max_rectangle.y, max_rectangle.w, max_rectangle.h, Color.ORANGE) 
+        max_rectangle = max(rectangles, key=lambda rect: rect.w * rect.h) 
+        markupImage.drawRectangle(max_rectangle.x, max_rectangle.y, max_rectangle.w, max_rectangle.h, Color.ORANGE) 
     return rectangles, markupImage 
 
 def grid_transform(info):
+    rects, img = info 
     max_rectangle = max(info[0], key=lambda rect: rect.w * rect.h)
-    info[0].remove(max_rectangle) 
-    img = info[1]
+    rects.remove(max_rectangle) 
+    rects.sort(key=lambda rect: -1 * rect.w * rect.h)  
+    find_rects_metadata(rects, img)
     origin = Point(max_rectangle.x, max_rectangle.y)
     end = Point(max_rectangle.x + max_rectangle.w, max_rectangle.y + max_rectangle.h)
     gridx = int(math.ceil(max_rectangle.w/14))
     gridy = int(math.ceil(max_rectangle.h/9))
-    grid = Grid(gridx, gridy, origin, end) 
+    grid = Grid(gridx, gridy, origin, end)  
+    web_rects = [] 
+    for rect in rects:
+        web_rects.append(transform_rect(rect, grid))
+    find_webrects_metadata(rects, web_rects) 
+    draw_web_rects(img, web_rects, grid) 
+    return list(filter(lambda rect: rect.w != 0 and rect.h != 0, web_rects)), img
+
+def analyze_color(rect):
+    return "red"
+
+def find_rects_metadata(rects, img):
+    for i, rect in enumerate(rects):
+        parent = None 
+        for j in range(i, -1, -1):
+            if inside(rect, rects[j]):  
+                rect.parent = rects[j]
+                break     
+        rect.shape = get_type(rect, img)
+
+def find_webrects_metadata(rects, webrects):
+    for i, webrect in enumerate(webrects): 
+        if (rects[i].parent):
+            index = rects.index(rects[i].parent)
+            parent = webrects[index]
+            webrect.parent=parent 
+    for rect in webrects:
+        if rect.parent:
+            if rect.shape: 
+                rect.parent.box_type = 1
+                rect.box_type = 2
+            rect.parent.children.append(rect) 
+
     
-    web_rects= classify_rect(info, grid)
-    return web_rects, img
+def get_type(rect, img):
+    cropped =  img.crop(rect.x, rect.y, rect.w, rect.h)
+    corners = cropped.findCorners(minquality=0.7) 
+    print len(corners)
+    if len(corners) == 3: 
+        return 1 
+    else:
+        return 0 
 
-def classify_rect(info, grid):
-    rects = info[0]
-    img = info[1]
-    
-    mid_rects =[]
-    #need to fix for TRIANGLE SUBSHAPE DETECTION
-    for i, rect in enumerate(rects): 
-	subshapes = find_subshapes(rects,rect)
-        if (len(subshapes) == 0):
-	    cc= rect[0:4]
-	    a = img.crop(cc)
-	    a.save('f{0}.jpg'.format(i))  
-	    if (detect_triangle(img.crop(rect[0:4]))):
-		shape = "triangle"
-	    else:
-		shape = "none"
-	mid_rects.append(Rectangle(rect[0], rect[1], rect[2], rect[3],0,0,0, shape, subshapes))
-    
-    web_coord_rects = []
-    for mrect in mid_rects:
-        coords = transform_rect(mrect, grid)
-        x = coords[0].x
-        y = coords[0].y
-        w = abs(coords[0].x - coords[1].x)
-        h = abs(coords[0].y - coords[1].y)
-        web_coord_rects.append(WebRectangle(x,y,w,h,"text",mrect.inside))
-
-    web_rects = []
-    _type = "text"
-    for wcrect in web_coord_rects:
-	for s in wcrect.inside:
-	    if ((s.type == "triangle") and (len(wcrect.inside) == 1)):
-		_type = "image"
-	web_rects.append(WebRectangle(wcrect[0], wcrect[1], wcrect[2], wcrect[3], _type, wcrect.inside))
-    return web_rects   
-
-def detect_triangle(img):
-    c = img.findCorners(10,.5)
-    if len(c) == 3:
-	return True
-
-    return False
        
-
  
 #ONLY FOR TESTING AND DRAWING PURPOSES
 def analyze_shapes(info):
@@ -102,8 +100,7 @@ def analyze_shapes(info):
         for s in sub:
             img.drawRectangle(s.x, s.y, s.w, s.h)
     return image
-         
- 
+          
 def find_subshapes(rectangles, rect):
     subshapes = []
     for r in rectangles:
@@ -111,38 +108,40 @@ def find_subshapes(rectangles, rect):
 	    subshapes.append(r)
     return subshapes
 
-def includes(shape, rectangle):
+def inside(shape, rectangle):
     if ((shape.x > rectangle.x) and (shape.y > rectangle.y) and (shape.w < rectangle.w) and (shape.h < rectangle.h)):
 	return True
     else:
         return False
-
-	    
+ 
 def transform_rect(rect, grid):
     '''Takes rectangle on paper and transforms it into a web rectangle with certain 
     properties'''
      
-    #_type = "text"
     upper_corner = transform_point(Point(rect.x, rect.y), grid) 
     lower_corner = transform_point(Point(rect.x + rect.w, rect.y + rect.h), grid) 
-    return upper_corner, lower_corner
-#return WebRectangle(upper_corner.x, upper_corner.y, abs(upper_corner.x - lower_corner.x),
-                 #abs(upper_corner.y - lower_corner.y), _type , [])
+    print lower_corner
+    return WebRectangle(upper_corner.x, upper_corner.y, abs(upper_corner.x - lower_corner.x),
+                 abs(upper_corner.y - lower_corner.y), rect.shape , [], None, 0)
 
     
 def transform_point(point, grid):
-    up_x = int(math.ceil((point.x + grid.origin.x)/grid.x))
-    down_x = int((point.x + grid.origin.x)/grid.x)
+    up_x = int(math.ceil((point.x - grid.origin.x)/grid.x))
+    down_x = int((point.x - grid.origin.x)/grid.x)
     if abs(point.x - up_x) >= abs(point.x - down_x): 
         new_x = down_x
     else:
         new_x = up_x
-    up_y = int(math.ceil((point.y + grid.origin.y)/grid.y))
-    down_y = int((point.y + grid.origin.y)/grid.y)
+    if new_x >= 14:
+        new_x = 13
+    up_y = int(math.ceil((point.y - grid.origin.y)/grid.y))
+    down_y = int((point.y - grid.origin.y)/grid.y)
     if abs(point.y - up_y) >= abs(point.y - down_y): 
         new_y = down_y
     else:
         new_y = up_y
+    if new_y >= 9:
+        new_y = 8
     return Point(new_x, new_y)
 
      
@@ -151,7 +150,16 @@ def draw_grid(image, grid):
         for j, y in enumerate(range(grid.origin.y, grid.end.y, grid.y)):
             image.drawRectangle(x, y, grid.x, grid.y, Color.GREEN)
     return image 
-    
+
+def draw_web_rects(image, web_rects, grid):
+    for rect in web_rects: 
+        a_x  = rect.x * grid.x + grid.origin.x
+        a_y  = rect.y * grid.y  + grid.origin.y
+        a_w =  grid.x * rect.w 
+        a_h =  grid.y * rect.h
+        image.drawRectangle(a_x, a_y, a_w, a_h, colors[rect.box_type]) 
+    return image
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Please enter an image to be analyzed")    
     parser.add_argument('image', type=str,
