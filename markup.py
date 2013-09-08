@@ -13,7 +13,7 @@ Grid = recordtype('grid', ['x','y', 'origin', 'end'])
 Point = recordtype('point', ['x','y'])
 def find_shapes(img):
     markupImage = Image(img)
-    bwImage = markupImage.binarize(70)
+    bwImage = markupImage.binarize(50)
     blobs = bwImage.findBlobs()
     rectangles = [] 
     for b in blobs:
@@ -174,18 +174,25 @@ def find_color(x,y, red, green, blue):
     greenlevel = greenimg.meanColor()
     bluelevel = blueimg.meanColor()
     if max(max(bluelevel), max(redlevel), max(greenlevel)) > 0.5:
-	color = max([bluelevel, redlevel, greenlevel], key=max)
-	if color == greenlevel:
-		return "green"
-	elif color == redlevel:
-		return "red"
-	else:
-		return "blue"
-    else:
-	return "black"
-
+        color = max([bluelevel, redlevel, greenlevel], key=max)
+        if color == greenlevel:
+            return "green"
+        elif color == redlevel:
+            return "red"
+        elif color == bluelevel:
+            return "blue"
+    return "black"
+        
 def analyze(img):
     return grid_transform(find_shapes(img))
+
+def get_rows(webrectangles, img):
+    rows = [[] for i in range(9)] 
+    for rect in webrectangles:
+        rows[rect.y].append(rect) 
+    return rows 
+
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Please enter an image to be analyzed")    
