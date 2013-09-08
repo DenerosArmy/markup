@@ -8,12 +8,13 @@ import os
 DEBUG = 1
 Rectangle =  recordtype('rectangle', ['x', 'y', 'w', 'h', 'color', 'shape', 'parent'])
 WebRectangle  = recordtype('webrectangle', ['x', 'y', 'w', 'h', 'shape', 'children', 'parent', 'box_type']) 
-colors = [Color.BLUE, Color.GREEN, Color.HOTPINK]
+colors = [Color.YELLOW, Color.HOTPINK, Color.CYAN, Color.RED, Color.BLUE, Color.GREEN]
 Grid = recordtype('grid', ['x','y', 'origin', 'end'])
 Point = recordtype('point', ['x','y'])
-def find_shapes(img):
-    markupImage = Image(img)
-    bwImage = markupImage.binarize(50)
+
+def find_shapes(img, i):
+    markupImage = img
+    bwImage = markupImage.binarize(i)
     blobs = bwImage.findBlobs()
     rectangles = [] 
     for b in blobs:
@@ -25,15 +26,39 @@ def find_shapes(img):
         #markupImage.drawRectangle(x, y, w, h)
         r = Rectangle(x, y, w, h, "black", 0, None)
         r.color = analyze_color(r, markupImage)
-        rectangles.append(r)
+	rectangles.append(r)
     if DEBUG:
         max_rectangle = max(rectangles, key=lambda rect: rect.w * rect.h) 
         markupImage.drawRectangle(max_rectangle.x, max_rectangle.y, max_rectangle.w, max_rectangle.h, Color.ORANGE) 
-    return rectangles, markupImage 
+    return rectangles, max_rectangle
+ 
+def best_detection(img):
+    img = Image(img)
+    included = True
+    rects = []
 
+    for i in range (20,100,10):
+	if not included:
+		included = True
+		continue
+
+
+        info = find_shapes(img, i)
+	rects = info[0]
+	maxrect = info[1]
+	for rect in rects:
+		if (~inside(maxrect, rect)):
+		    included = False
+		    break
+	if included == True:
+	    print i
+	    print rects
+	    return rects, img
+    return rects, img
+	
 def grid_transform(info):
     rects, img = info 
-    max_rectangle = max(info[0], key=lambda rect: rect.w * rect.h)
+    max_rectangle = max(rects, key=lambda rect: rect.w * rect.h)
     rects.remove(max_rectangle) 
     rects.sort(key=lambda rect: -1 * rect.w * rect.h)  
     find_rects_metadata(rects, img)
@@ -60,7 +85,8 @@ def find_rects_metadata(rects, img):
 
 def find_webrects_metadata(rects, webrects):
     for i, webrect in enumerate(webrects): 
-        if (rects[i].parent):
+        webrect.box_type = imagetonum(rects[i].color)
+	if (rects[i].parent):
             index = rects.index(rects[i].parent)
             parent = webrects[index]
             webrect.parent=parent 
@@ -70,6 +96,17 @@ def find_webrects_metadata(rects, webrects):
                 rect.parent.box_type = 1
                 rect.box_type = 2
             rect.parent.children.append(rect) 
+
+def imagetonum(str):
+    print str
+    if str == "red":
+	return 3
+    elif str == "green":
+	return 4
+    elif str == "blue":
+	return 5
+    else:
+	return 0
 
     
 def get_type(rect, img):
@@ -99,7 +136,7 @@ def analyze_shapes(info):
 def find_subshapes(rectangles, rect):
     subshapes = []
     for r in rectangles:
-	if ((~(rect == r)) and (includes(r,rect))):
+	if ((~(rect == r)) and (inside(r,rect))):
 	    subshapes.append(r)
     return subshapes
 
@@ -173,7 +210,7 @@ def find_color(x,y, red, green, blue):
     redlevel = redimg.meanColor()
     greenlevel = greenimg.meanColor()
     bluelevel = blueimg.meanColor()
-    if max(max(bluelevel), max(redlevel), max(greenlevel)) > 0.5:
+    if max(max(bluelevel), max(redlevel), max(greenlevel)) > 0.3:
         color = max([bluelevel, redlevel, greenlevel], key=max)
         if color == greenlevel:
             return "green"
@@ -184,7 +221,7 @@ def find_color(x,y, red, green, blue):
     return "black"
         
 def analyze(img):
-    return grid_transform(find_shapes(img))
+    return grid_transform(best_detection(img))
 
 def get_rows(webrectangles, img):
     rows = [[] for i in range(9)] 
