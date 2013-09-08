@@ -23,39 +23,12 @@ def find_shapes(img, i):
         y = info[1]
         w = info[2]
         h = info[3]
-        #markupImage.drawRectangle(x, y, w, h)
+        markupImage.drawRectangle(x, y, w, h)
         r = Rectangle(x, y, w, h, "black", 0, None)
         r.color = analyze_color(r, markupImage)
 	rectangles.append(r)
-    if DEBUG:
-        max_rectangle = max(rectangles, key=lambda rect: rect.w * rect.h) 
-        markupImage.drawRectangle(max_rectangle.x, max_rectangle.y, max_rectangle.w, max_rectangle.h, Color.ORANGE) 
-    return rectangles, max_rectangle
+    return rectangles, img
  
-def best_detection(img):
-    img = Image(img)
-    included = True
-    rects = []
-
-    for i in range (20,100,10):
-	if not included:
-		included = True
-		continue
-
-
-        info = find_shapes(img, i)
-	rects = info[0]
-	maxrect = info[1]
-	for rect in rects:
-		if (~inside(maxrect, rect)):
-		    included = False
-		    break
-	if included == True:
-	    print i
-	    print rects
-	    return rects, img
-    return rects, img
-	
 def grid_transform(info):
     rects, img = info 
     max_rectangle = max(rects, key=lambda rect: rect.w * rect.h)
@@ -71,7 +44,7 @@ def grid_transform(info):
     for rect in rects:
         web_rects.append(transform_rect(rect, grid))
     find_webrects_metadata(rects, web_rects) 
-    draw_web_rects(img, web_rects, grid) 
+    #draw_web_rects(img, web_rects, grid) 
     return list(filter(lambda rect: rect.w != 0 and rect.h != 0, web_rects)), img
 
 def find_rects_metadata(rects, img):
@@ -221,7 +194,7 @@ def find_color(x,y, red, green, blue):
     return "black"
         
 def analyze(img):
-    return grid_transform(best_detection(img))
+    return grid_transform(find_shapes(Image(img), 50))
 
 def get_rows(webrectangles, img):
     rows = [[] for i in range(9)] 
