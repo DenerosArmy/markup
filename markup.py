@@ -6,15 +6,11 @@ from recordtype import recordtype
 import numpy
 import os
 DEBUG = 1
-Rectangle =  recordtype('rectangle', ['x', 'y', 'w', 'h', 'r', 'g', 'b', 'shape', 'parent'])
+Rectangle =  recordtype('rectangle', ['x', 'y', 'w', 'h', 'color', 'shape', 'parent'])
 WebRectangle  = recordtype('webrectangle', ['x', 'y', 'w', 'h', 'shape', 'children', 'parent', 'box_type']) 
 colors = [Color.BLUE, Color.GREEN, Color.HOTPINK]
 Grid = recordtype('grid', ['x','y', 'origin', 'end'])
 Point = recordtype('point', ['x','y'])
-def find_color(x,y, image):
-    corner = image.crop(x-2, y-2, 4, 4)
-    return corner.meanColor() 
-
 def find_shapes(img):
     markupImage = Image(img)
     bwImage = markupImage.binarize(50)
@@ -26,9 +22,10 @@ def find_shapes(img):
         y = info[1]
         w = info[2]
         h = info[3]
-        c = find_color(x, y, markupImage)
         #markupImage.drawRectangle(x, y, w, h)
-        rectangles.append(Rectangle(x,y,w,h,c[0], c[1], c[2],0,None))
+        r = Rectangle(x, y, w, h, c[0], c[1], c[2], "black", 0, None)
+        r.color = analyze_color(r, markupImage)
+        rectangles.append(r)
     if DEBUG:
         max_rectangle = max(rectangles, key=lambda rect: rect.w * rect.h) 
         markupImage.drawRectangle(max_rectangle.x, max_rectangle.y, max_rectangle.w, max_rectangle.h, Color.ORANGE) 
@@ -162,7 +159,7 @@ def analyze_color(rect, markupImage):
     red_image = markupImage - markupImage.colorDistance(Color.RED)
     green_image = markupImage - markupImage.colorDistance(Color.GREEN)
     blue_image  = markupImage - markupImage.colorDistance(Color.BLUE)
-    find_color(rect[0], rect[1], red_image, green_image, blue_image)   
+    return find_color(rect[0], rect[1], red_image, green_image, blue_image)   
 
 def find_color(x,y, red, green, blue):
     redimg = red.crop(x,y,5,5)
